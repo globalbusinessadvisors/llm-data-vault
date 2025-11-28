@@ -1,0 +1,57 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Config
+config/local.toml
+config/production.toml
+
+# Logs
+*.log
+logs/
+
+# Data
+/data/
+*.db
+*.sqlite
+
+# Test artifacts
+*.profraw
+coverage/
+lcov.info
+
+# Build artifacts
+dist/
+*.tar.gz
+*.zip
+
+# Docker
+.docker/
+
+# Kubernetes secrets (never commit)
+**/secrets.yaml
+**/*-secrets.yaml
+
+# Temporary files
+tmp/
+temp/
+*.tmp

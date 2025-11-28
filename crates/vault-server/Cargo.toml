@@ -1,0 +1,52 @@
+[package]
+name = "vault-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Main server binary for LLM Data Vault"
+
+[[bin]]
+name = "vault-server"
+path = "src/main.rs"
+
+[dependencies]
+vault-core = { path = "../vault-core" }
+vault-crypto = { path = "../vault-crypto", features = ["aws-kms"] }
+vault-storage = { path = "../vault-storage", features = ["aws-s3", "postgres", "redis"] }
+vault-anonymize = { path = "../vault-anonymize" }
+vault-access = { path = "../vault-access" }
+vault-version = { path = "../vault-version" }
+vault-integration = { path = "../vault-integration" }
+vault-api = { path = "../vault-api" }
+
+# Web framework
+axum = { workspace = true }
+
+# Async
+tokio = { workspace = true }
+
+# Observability
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+
+# Configuration
+config = { workspace = true }
+dotenvy = { workspace = true }
+serde = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+# Utilities
+parking_lot = { workspace = true }
+blake3 = { workspace = true }
+jsonwebtoken = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.9"

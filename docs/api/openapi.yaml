@@ -1,0 +1,1502 @@
+openapi: 3.0.3
+info:
+  title: LLM Data Vault API
+  description: |
+    Enterprise-grade secure data management API for LLM training pipelines.
+
+    ## Authentication
+
+    Most endpoints require authentication via JWT bearer token or API key.
+
+    ### JWT Authentication
+    1. Call `/api/v1/auth/login` with credentials
+    2. Use the returned `access_token` in the `Authorization` header
+    3. Refresh tokens using `/api/v1/auth/refresh` before expiration
+
+    ### API Key Authentication
+    Include your API key in the `X-API-Key` header.
+
+    ## Rate Limiting
+
+    - Default: 100 requests/second per client
+    - Burst: 200 requests
+    - Rate limit headers included in responses
+
+    ## Pagination
+
+    List endpoints support cursor-based pagination:
+    - `limit`: Number of items (default: 20, max: 100)
+    - `cursor`: Cursor from previous response
+
+    ## Error Responses
+
+    All errors return JSON with:
+    - `code`: Machine-readable error code
+    - `message`: Human-readable description
+    - `request_id`: For support inquiries
+
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: api-support@example.com
+    url: https://docs.example.com
+  license:
+    name: LLMDevOps-PSACL v1.0
+    url: https://example.com/license
+
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: https://staging-api.example.com
+    description: Staging
+  - url: http://localhost:8080
+    description: Local Development
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Authentication
+    description: Authentication and authorization
+  - name: Datasets
+    description: Dataset management
+  - name: Records
+    description: Record operations within datasets
+  - name: PII
+    description: PII detection and anonymization
+  - name: Webhooks
+    description: Webhook management
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
+paths:
+  # Health Endpoints
+  /health:
+    get:
+      tags: [Health]
+      summary: Basic health check
+      description: Returns basic health status. No authentication required.
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: healthy
+                timestamp: "2024-01-15T10:30:00Z"
+
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      description: Kubernetes liveness probe endpoint.
+      operationId: livenessProbe
+      security: []
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      description: Kubernetes readiness probe. Returns 503 if dependencies are unavailable.
+      operationId: readinessProbe
+      security: []
+      responses:
+        '200':
+          description: Service is ready to accept traffic
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/detailed:
+    get:
+      tags: [Health]
+      summary: Detailed health status
+      description: Returns detailed health status including component checks.
+      operationId: detailedHealth
+      security: []
+      responses:
+        '200':
+          description: Detailed health information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedHealthResponse'
+
+  /health/version:
+    get:
+      tags: [Health]
+      summary: Version information
+      description: Returns service version and build information.
+      operationId: versionInfo
+      security: []
+      responses:
+        '200':
+          description: Version information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+
+  # Authentication Endpoints
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate user
+      description: Authenticates a user and returns access and refresh tokens.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@example.com
+              password: password123
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register new user
+      description: Creates a new user account.
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      description: Uses a refresh token to obtain a new access token.
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout user
+      description: Invalidates the current session and tokens.
+      operationId: logout
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get current user
+      description: Returns information about the authenticated user.
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Dataset Endpoints
+  /api/v1/datasets:
+    get:
+      tags: [Datasets]
+      summary: List datasets
+      description: Returns a paginated list of datasets the user has access to.
+      operationId: listDatasets
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - name: search
+          in: query
+          description: Search datasets by name
+          schema:
+            type: string
+        - name: tags
+          in: query
+          description: Filter by tags (comma-separated)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of datasets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Datasets]
+      summary: Create dataset
+      description: Creates a new dataset.
+      operationId: createDataset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDatasetRequest'
+      responses:
+        '201':
+          description: Dataset created successfully
+          headers:
+            Location:
+              description: URL of the created dataset
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/datasets/{datasetId}:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+
+    get:
+      tags: [Datasets]
+      summary: Get dataset
+      description: Returns details of a specific dataset.
+      operationId: getDataset
+      responses:
+        '200':
+          description: Dataset details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Datasets]
+      summary: Update dataset
+      description: Updates dataset metadata.
+      operationId: updateDataset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDatasetRequest'
+      responses:
+        '200':
+          description: Dataset updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags: [Datasets]
+      summary: Delete dataset
+      description: Soft-deletes a dataset. Can be restored within retention period.
+      operationId: deleteDataset
+      responses:
+        '204':
+          description: Dataset deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/datasets/{datasetId}/stats:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+    get:
+      tags: [Datasets]
+      summary: Get dataset statistics
+      description: Returns statistics about the dataset including record counts and storage usage.
+      operationId: getDatasetStats
+      responses:
+        '200':
+          description: Dataset statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetStatsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Record Endpoints
+  /api/v1/datasets/{datasetId}/records:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+
+    get:
+      tags: [Records]
+      summary: List records
+      description: Returns a paginated list of records in the dataset.
+      operationId: listRecords
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - name: filter
+          in: query
+          description: Filter expression
+          schema:
+            type: string
+        - name: select
+          in: query
+          description: Fields to include (comma-separated)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Records]
+      summary: Create record
+      description: |
+        Creates a new record in the dataset.
+
+        The system automatically:
+        - Detects PII in the content
+        - Computes content hash for deduplication
+        - Creates version history
+        - Logs the operation for audit
+      operationId: createRecord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRecordRequest'
+      responses:
+        '201':
+          description: Record created successfully
+          headers:
+            Location:
+              description: URL of the created record
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/datasets/{datasetId}/records/{recordId}:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+      - $ref: '#/components/parameters/RecordId'
+
+    get:
+      tags: [Records]
+      summary: Get record
+      description: Returns a specific record.
+      operationId: getRecord
+      responses:
+        '200':
+          description: Record details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Records]
+      summary: Update record
+      description: Updates a record. Creates a new version.
+      operationId: updateRecord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRecordRequest'
+      responses:
+        '200':
+          description: Record updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags: [Records]
+      summary: Delete record
+      description: Soft-deletes a record.
+      operationId: deleteRecord
+      responses:
+        '204':
+          description: Record deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/datasets/{datasetId}/records/{recordId}/history:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+      - $ref: '#/components/parameters/RecordId'
+    get:
+      tags: [Records]
+      summary: Get record history
+      description: Returns the version history of a record.
+      operationId: getRecordHistory
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Record version history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/datasets/{datasetId}/records/batch:
+    parameters:
+      - $ref: '#/components/parameters/DatasetId'
+    post:
+      tags: [Records]
+      summary: Batch create records
+      description: Creates multiple records in a single request. Maximum 1000 records.
+      operationId: batchCreateRecords
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchCreateRequest'
+      responses:
+        '200':
+          description: Batch operation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # PII Detection & Anonymization Endpoints
+  /api/v1/detect:
+    post:
+      tags: [PII]
+      summary: Detect PII
+      description: |
+        Detects PII in the provided text.
+
+        Supported PII types:
+        - email
+        - phone
+        - ssn (US Social Security Number)
+        - credit_card
+        - ip_address
+        - date_of_birth
+        - address
+        - name
+        - api_key
+        - password
+        - and more...
+      operationId: detectPII
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DetectRequest'
+      responses:
+        '200':
+          description: PII detection results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetectResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/anonymize:
+    post:
+      tags: [PII]
+      summary: Anonymize text
+      description: |
+        Detects and anonymizes PII in the provided text.
+
+        Available strategies:
+        - `redact`: Replace PII with [TYPE REDACTED]
+        - `mask`: Replace with asterisks (e.g., j***@e***.com)
+        - `tokenize`: Replace with reversible tokens
+        - `hash`: Replace with one-way hash
+        - `encrypt`: Replace with encrypted value (reversible with key)
+        - `k_anonymity`: Apply k-anonymity generalization
+        - `differential_privacy`: Add noise for differential privacy
+      operationId: anonymizeText
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnonymizeRequest'
+      responses:
+        '200':
+          description: Anonymization results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnonymizeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # Webhook Endpoints
+  /api/v1/webhooks:
+    get:
+      tags: [Webhooks]
+      summary: List webhooks
+      description: Returns all configured webhooks.
+      operationId: listWebhooks
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: List of webhooks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Webhooks]
+      summary: Create webhook
+      description: Creates a new webhook subscription.
+      operationId: createWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookRequest'
+      responses:
+        '201':
+          description: Webhook created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/webhooks/{webhookId}:
+    parameters:
+      - $ref: '#/components/parameters/WebhookId'
+
+    get:
+      tags: [Webhooks]
+      summary: Get webhook
+      description: Returns webhook details.
+      operationId: getWebhook
+      responses:
+        '200':
+          description: Webhook details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Webhooks]
+      summary: Update webhook
+      description: Updates webhook configuration.
+      operationId: updateWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWebhookRequest'
+      responses:
+        '200':
+          description: Webhook updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags: [Webhooks]
+      summary: Delete webhook
+      description: Deletes a webhook subscription.
+      operationId: deleteWebhook
+      responses:
+        '204':
+          description: Webhook deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/webhooks/{webhookId}/test:
+    parameters:
+      - $ref: '#/components/parameters/WebhookId'
+    post:
+      tags: [Webhooks]
+      summary: Test webhook
+      description: Sends a test event to the webhook URL.
+      operationId: testWebhook
+      responses:
+        '200':
+          description: Test webhook sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookTestResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from /auth/login
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for service-to-service authentication
+
+  parameters:
+    DatasetId:
+      name: datasetId
+      in: path
+      required: true
+      description: Dataset unique identifier
+      schema:
+        type: string
+        format: uuid
+
+    RecordId:
+      name: recordId
+      in: path
+      required: true
+      description: Record unique identifier
+      schema:
+        type: string
+        format: uuid
+
+    WebhookId:
+      name: webhookId
+      in: path
+      required: true
+      description: Webhook unique identifier
+      schema:
+        type: string
+        format: uuid
+
+    Limit:
+      name: limit
+      in: query
+      description: Maximum number of items to return
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    Cursor:
+      name: cursor
+      in: query
+      description: Pagination cursor from previous response
+      schema:
+        type: string
+
+  responses:
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: UNAUTHORIZED
+            message: Invalid or expired token
+            request_id: req_abc123
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: NOT_FOUND
+            message: Dataset with id 'ds_123' not found
+            request_id: req_abc123
+
+    Conflict:
+      description: Resource conflict (e.g., already exists)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: CONFLICT
+            message: Resource already exists
+            request_id: req_abc123
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          example:
+            code: VALIDATION_ERROR
+            message: Validation failed
+            errors:
+              email:
+                - must be a valid email address
+              password:
+                - must be at least 8 characters
+            request_id: req_abc123
+
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          description: Request limit per second
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          description: Remaining requests
+          schema:
+            type: integer
+        X-RateLimit-Reset:
+          description: Unix timestamp when limit resets
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: RATE_LIMITED
+            message: Rate limit exceeded. Try again in 60 seconds.
+            request_id: req_abc123
+
+  schemas:
+    # Common Schemas
+    ErrorResponse:
+      type: object
+      required: [code, message, timestamp]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable error message
+        request_id:
+          type: string
+          description: Request ID for support
+        timestamp:
+          type: string
+          format: date-time
+
+    ValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        success:
+          type: boolean
+          default: true
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+        limit:
+          type: integer
+          description: Items per page
+        has_more:
+          type: boolean
+          description: Whether more items exist
+        next_cursor:
+          type: string
+          nullable: true
+          description: Cursor for next page
+
+    # Health Schemas
+    HealthResponse:
+      type: object
+      required: [status, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy, degraded]
+        timestamp:
+          type: string
+          format: date-time
+
+    DetailedHealthResponse:
+      allOf:
+        - $ref: '#/components/schemas/HealthResponse'
+        - type: object
+          properties:
+            components:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, unhealthy]
+                  latency_ms:
+                    type: number
+            uptime_seconds:
+              type: integer
+
+    VersionResponse:
+      type: object
+      properties:
+        version:
+          type: string
+        git_sha:
+          type: string
+        build_date:
+          type: string
+          format: date-time
+        rust_version:
+          type: string
+
+    # Auth Schemas
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+
+    LoginResponse:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+        refresh_token:
+          type: string
+          description: Refresh token for obtaining new access tokens
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Access token expiration in seconds
+
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # Dataset Schemas
+    CreateDatasetRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+        tags:
+          type: array
+          items:
+            type: string
+          maxItems: 20
+        settings:
+          type: object
+          additionalProperties: true
+
+    UpdateDatasetRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+        tags:
+          type: array
+          items:
+            type: string
+          maxItems: 20
+        settings:
+          type: object
+          additionalProperties: true
+
+    DatasetResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        record_count:
+          type: integer
+        size_bytes:
+          type: integer
+          format: int64
+        created_by:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DatasetListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DatasetResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    DatasetStatsResponse:
+      type: object
+      properties:
+        record_count:
+          type: integer
+        size_bytes:
+          type: integer
+          format: int64
+        version_count:
+          type: integer
+        pii_detections:
+          type: object
+          additionalProperties:
+            type: integer
+        last_modified:
+          type: string
+          format: date-time
+
+    # Record Schemas
+    CreateRecordRequest:
+      type: object
+      required: [data]
+      properties:
+        id:
+          type: string
+          description: Optional custom ID
+        data:
+          type: object
+          description: Record data (any JSON)
+        metadata:
+          type: object
+          description: Custom metadata
+
+    UpdateRecordRequest:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+        metadata:
+          type: object
+        expected_version:
+          type: integer
+          description: For optimistic locking
+
+    RecordResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        dataset_id:
+          type: string
+          format: uuid
+        data:
+          type: object
+        content_hash:
+          type: string
+        version:
+          type: integer
+        pii_detections:
+          type: array
+          items:
+            $ref: '#/components/schemas/PIIDetection'
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    RecordListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    RecordHistoryResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              version:
+                type: integer
+              content_hash:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+              user_id:
+                type: string
+              change_type:
+                type: string
+                enum: [created, updated, deleted]
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    BatchCreateRequest:
+      type: object
+      required: [records]
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateRecordRequest'
+          minItems: 1
+          maxItems: 1000
+
+    BatchResponse:
+      type: object
+      properties:
+        created:
+          type: array
+          items:
+            type: string
+        failed:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              error:
+                type: string
+        total:
+          type: integer
+
+    # PII Schemas
+    PIIDetection:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Type of PII detected
+        value:
+          type: string
+          description: The detected value (may be masked)
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        risk_level:
+          type: string
+          enum: [low, medium, high, critical]
+        location:
+          type: object
+          properties:
+            start:
+              type: integer
+            end:
+              type: integer
+
+    DetectRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          maxLength: 1000000
+        min_confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.5
+        pii_types:
+          type: array
+          items:
+            type: string
+          description: Specific PII types to detect (empty = all)
+
+    DetectResponse:
+      type: object
+      properties:
+        detections:
+          type: array
+          items:
+            $ref: '#/components/schemas/PIIDetection'
+        text_length:
+          type: integer
+        processing_time_ms:
+          type: number
+
+    AnonymizeRequest:
+      type: object
+      required: [text, strategy]
+      properties:
+        text:
+          type: string
+          maxLength: 1000000
+        strategy:
+          type: string
+          enum: [redact, mask, tokenize, hash, encrypt, k_anonymity, differential_privacy]
+        min_confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.5
+        pii_types:
+          type: array
+          items:
+            type: string
+          description: Specific PII types to anonymize (empty = all)
+
+    AnonymizeResponse:
+      type: object
+      properties:
+        result:
+          type: string
+          description: Anonymized text
+        detections_anonymized:
+          type: integer
+        detections:
+          type: array
+          items:
+            $ref: '#/components/schemas/PIIDetection'
+        processing_time_ms:
+          type: number
+
+    # Webhook Schemas
+    CreateWebhookRequest:
+      type: object
+      required: [name, url, events]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+            enum:
+              - dataset.created
+              - dataset.updated
+              - dataset.deleted
+              - record.created
+              - record.updated
+              - record.deleted
+              - pii.detected
+              - '*'
+          minItems: 1
+        secret:
+          type: string
+          description: Secret for signing webhook payloads
+
+    UpdateWebhookRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        is_active:
+          type: boolean
+        secret:
+          type: string
+
+    WebhookResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    WebhookListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    WebhookTestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status_code:
+          type: integer
+        response_time_ms:
+          type: number
+        error:
+          type: string
+          nullable: true

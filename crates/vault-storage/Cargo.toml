@@ -1,0 +1,50 @@
+[package]
+name = "vault-storage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Storage backends for LLM Data Vault"
+
+[dependencies]
+vault-core = { path = "../vault-core" }
+vault-crypto = { path = "../vault-crypto" }
+
+tokio = { workspace = true }
+async-trait = { workspace = true }
+async-stream = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+bytes = { workspace = true }
+blake3 = { workspace = true }
+sha2 = { workspace = true }
+lru = { workspace = true }
+parking_lot = { workspace = true }
+dashmap = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+mime_guess = "2.0"
+
+# AWS S3 (feature-gated)
+aws-sdk-s3 = { workspace = true, optional = true }
+aws-config = { workspace = true, optional = true }
+
+# Database
+sqlx = { workspace = true, optional = true }
+deadpool-redis = { workspace = true, optional = true }
+redis = { workspace = true, optional = true }
+
+[features]
+default = []
+aws-s3 = ["aws-sdk-s3", "aws-config"]
+postgres = ["sqlx"]
+redis = ["dep:redis", "deadpool-redis"]
+
+[dev-dependencies]
+mockall = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
+tempfile = "3.9"

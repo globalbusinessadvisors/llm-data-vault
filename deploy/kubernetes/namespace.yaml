@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-data-vault
+  labels:
+    app.kubernetes.io/name: llm-data-vault
+    app.kubernetes.io/part-of: llm-data-vault

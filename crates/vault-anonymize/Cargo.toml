@@ -1,0 +1,36 @@
+[package]
+name = "vault-anonymize"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "PII detection and anonymization for LLM Data Vault"
+
+[dependencies]
+vault-core = { path = "../vault-core" }
+vault-crypto = { path = "../vault-crypto" }
+
+tokio = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+regex = { workspace = true }
+once_cell = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+sha2 = { workspace = true }
+blake3 = { workspace = true }
+parking_lot = { workspace = true }
+dashmap = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }
+bytes = { workspace = true }
+
+[dev-dependencies]
+mockall = { workspace = true }
+fake = { workspace = true }
+proptest = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }

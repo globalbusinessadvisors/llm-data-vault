@@ -1,0 +1,75 @@
+[package]
+name = "vault-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Enterprise CLI for LLM Data Vault - secure storage and anonymization"
+readme = "README.md"
+keywords = ["llm", "data-vault", "cli", "anonymization", "pii"]
+categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "vault"
+path = "src/main.rs"
+
+[dependencies]
+# SDK
+vault-sdk = { path = "../vault-sdk" }
+
+# CLI framework
+clap = { version = "4.4", features = ["derive", "env", "string", "wrap_help"] }
+clap_complete = "4.4"
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true }
+
+# Output formatting
+tabled = "0.15"
+colored = "2.1"
+indicatif = { version = "0.17", features = ["tokio"] }
+console = "0.15"
+dialoguer = { version = "0.11", features = ["fuzzy-select"] }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Configuration
+directories = "5.0"
+config = { workspace = true }
+dotenvy = { workspace = true }
+
+# Utilities
+chrono = { workspace = true }
+uuid = { workspace = true }
+url = { workspace = true }
+base64 = { workspace = true }
+secrecy = { version = "0.8", features = ["serde"] }
+keyring = { version = "2.3", optional = true }
+
+# Cryptography (for encrypt/decrypt commands)
+sha2 = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[features]
+default = ["keyring"]
+keyring = ["dep:keyring"]
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+tempfile = "3.10"
+
+[lints]
+workspace = true

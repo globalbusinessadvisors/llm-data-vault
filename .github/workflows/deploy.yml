@@ -1,0 +1,74 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: 'Version to deploy (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Update deployment image
+        run: |
+          kubectl set image deployment/vault-server \
+            vault-server=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }} \
+            -n llm-data-vault
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/vault-server \
+            -n llm-data-vault \
+            --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n llm-data-vault -l app.kubernetes.io/name=vault-server
+
+          # Health check
+          POD=$(kubectl get pod -n llm-data-vault -l app.kubernetes.io/name=vault-server -o jsonpath='{.items[0].metadata.name}')
+          kubectl exec -n llm-data-vault $POD -- curl -sf http://localhost:8080/health/ready || exit 1
+
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "Deployment to ${{ inputs.environment }} successful!"
+          # Add your notification logic here (Slack, etc.)
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "Deployment failed, rolling back..."
+          kubectl rollout undo deployment/vault-server -n llm-data-vault
+          kubectl rollout status deployment/vault-server -n llm-data-vault --timeout=5m

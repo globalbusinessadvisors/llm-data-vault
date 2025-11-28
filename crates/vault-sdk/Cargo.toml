@@ -1,0 +1,74 @@
+[package]
+name = "vault-sdk"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Official Rust SDK for LLM Data Vault - enterprise-grade client library"
+readme = "README.md"
+keywords = ["llm", "data-vault", "sdk", "api-client", "anonymization"]
+categories = ["api-bindings", "development-tools"]
+
+[dependencies]
+# HTTP client
+reqwest = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Time
+chrono = { workspace = true }
+
+# UUID
+uuid = { workspace = true }
+
+# URL handling
+url = { workspace = true }
+
+# Bytes
+bytes = { workspace = true }
+
+# Retry and resilience
+backoff = { workspace = true }
+tower = { workspace = true }
+
+# Auth
+jsonwebtoken = { workspace = true }
+base64 = { workspace = true }
+
+# Crypto for signatures
+hmac = { workspace = true }
+sha2 = { workspace = true }
+
+# Utilities
+secrecy = { workspace = true }
+parking_lot = { workspace = true }
+tracing = { workspace = true }
+urlencoding = { workspace = true }
+
+# Optional blocking client
+tokio-util = { version = "0.7", optional = true }
+
+[features]
+default = ["rustls"]
+rustls = ["reqwest/rustls-tls"]
+native-tls = ["reqwest/native-tls"]
+blocking = ["tokio-util"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }
+wiremock = "0.5"
+mockall = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-server-config
+  namespace: llm-data-vault
+  labels:
+    app.kubernetes.io/name: vault-server
+    app.kubernetes.io/component: config
+data:
+  VAULT__HOST: "0.0.0.0"
+  VAULT__PORT: "8080"
+  VAULT__DEBUG: "false"
+  VAULT__STORAGE__BACKEND: "s3"
+  VAULT__TELEMETRY__ENABLE_METRICS: "true"
+  VAULT__TELEMETRY__ENABLE_TRACING: "true"
+  VAULT__TELEMETRY__LOG_LEVEL: "info"
+  VAULT__TELEMETRY__LOG_FORMAT: "json"
+  VAULT__RATE_LIMIT_RPS: "100"
+  VAULT__RATE_LIMIT_BURST: "200"
+  RUST_LOG: "info"
