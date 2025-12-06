@@ -130,6 +130,12 @@ reqwest = { version = "0.11", default-features = false, features = ["json", "rus
 backoff = { version = "0.4", features = ["tokio"] }
 secrecy = { version = "0.8", features = ["serde"] }
 
+# LLM-Dev-Ops Ecosystem Dependencies (Phase 2A)
+schema-registry-core = "0.1.0"
+llm-config-core = "0.5.0"
+llm-observatory-core = "0.1.1"
+llm-memory-graph = "0.1.0"
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 missing_docs = "warn"
